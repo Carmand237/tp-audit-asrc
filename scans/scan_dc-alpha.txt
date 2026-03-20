@@ -1,0 +1,70 @@
+# ============================================================
+# AUDIT DE SÉCURITÉ — ALPHA SERVICES
+# Référence : AUDIT-ASRC-2026-001
+# Auditeur   : CHUIGWA Armand — Formation ASRC IMIE Paris
+# Date       : 20 mars 2026 — 02:46 CET
+# Cible      : DC-ALPHA — 192.168.20.10
+# Zone       : SERVERS (192.168.20.0/24)
+# Commande   : sudo nmap -sV -sC -p- 192.168.20.10 -oN scan_dc-alpha.txt
+# ============================================================
+
+Starting Nmap 7.98 ( https://nmap.org ) at 2026-03-20 02:46 +0100
+Nmap scan report for dc-alpha.alpha.lab (192.168.20.10)
+Host is up (0.0012s latency).
+Not shown: 65518 filtered tcp ports (no-response)
+
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2026-03-20 01:48:17Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: alpha.lab, Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+9389/tcp  open  mc-nmf        .NET Message Framing
+49664/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+54388/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+54389/tcp open  msrpc         Microsoft Windows RPC
+54405/tcp open  msrpc         Microsoft Windows RPC
+54423/tcp open  msrpc         Microsoft Windows RPC
+
+Service Info: Host: DC-ALPHA; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb2-time:
+|   date: 2026-03-20T01:49:09
+|_  start_date: N/A
+| smb2-security-mode:
+|   3.1.1:
+|_    Message signing enabled and required
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 205.60 seconds
+
+# ============================================================
+# ANALYSE DES RÉSULTATS
+# ============================================================
+#
+# [C-AD-01] PORT 636 (LDAPS) — tcpwrapped
+#   → LDAPS non fonctionnel : certificat invalide ou port mal configuré
+#   → Communications LDAP potentiellement en clair sur port 389
+#   → Criticité : ÉLEVÉ
+#
+# [C-AD-02] PORT 3268 (LDAP Global Catalog) — ouvert
+#   → Expose la structure complète de l'annuaire depuis ADMIN
+#   → Accessible sans restriction depuis la zone ADMIN
+#   → Criticité : ÉLEVÉ
+#
+# [P-AD-01] SMB2 SIGNING — enabled and REQUIRED
+#   → Bonne configuration : protection contre NTLM Relay côté DC
+#   → À maintenir et étendre aux serveurs membres
+#   → Statut : BON
+#
+# [P-AD-02] DNS — hostname dc-alpha.alpha.lab résolu
+#   → Le DNS AD répond correctement depuis la zone ADMIN
+#   → Domaine : alpha.lab — Site : Default-First-Site-Name
+# ============================================================

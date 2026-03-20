@@ -1,0 +1,164 @@
+# ============================================================
+# AUDIT DE SÉCURITÉ — ALPHA SERVICES
+# Référence : AUDIT-ASRC-2026-001
+# Auditeur   : CHUIGWA Armand — Formation ASRC IMIE Paris
+# Date       : 20 mars 2026 — 03:24 CET
+# Cible      : CLIENT-ALPHA — 192.168.10.50
+# Zone       : LAN (192.168.10.0/24)
+# Commande   : sudo nmap -sV -sC 192.168.10.50 -oN scan_client-alpha.txt
+# ============================================================
+
+Starting Nmap 7.98 ( https://nmap.org ) at 2026-03-20 03:24 +0100
+Nmap scan report for 192.168.10.50
+Host is up (0.0015s latency).
+Not shown: 995 closed tcp ports (reset)
+
+PORT     STATE SERVICE       VERSION
+80/tcp   open  http          Flexense Dup Scout 10.0.18
+|_http-generator: Flexense HTTP v10.0.18
+|_http-title: Dup Scout Enterprise @ CLIENT-ALPHA - Online Registration
+135/tcp  open  msrpc         Microsoft Windows RPC
+139/tcp  open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp  open  microsoft-ds?
+3389/tcp open  ms-wbt-server Microsoft Terminal Services
+| rdp-ntlm-info:
+|   Target_Name: ALPHA
+|   NetBIOS_Domain_Name: ALPHA
+|   NetBIOS_Computer_Name: CLIENT-ALPHA
+|   DNS_Domain_Name: alpha.lab
+|   DNS_Computer_Name: CLIENT-ALPHA.alpha.lab
+|   DNS_Tree_Name: alpha.lab
+|   Product_Version: 10.0.17763
+|_  System_Time: 2026-03-20T02:25:08+00:00
+| ssl-cert: Subject: commonName=CLIENT-ALPHA.alpha.lab
+| Not valid before: 2026-03-12T10:13:49
+|_Not valid after:  2026-09-11T10:13:49
+|_ssl-date: 2026-03-20T02:25:16+00:00; +1s from scanner time.
+
+Service Info: Host: CLIENT-ALPHA; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb2-security-mode:
+|   3.1.1:
+|_    Message signing enabled but not required
+| smb2-time:
+|   date: 2026-03-20T02:25:10
+|_  start_date: N/A
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 16.36 seconds
+
+# ============================================================
+# TEST COMPLÉMENTAIRE — SMB PORT 445 INTER-ZONES
+# Commande : nmap -p 445 192.168.20.10 192.168.10.50 192.168.30.10
+# ============================================================
+
+Nmap scan report for dc-alpha.alpha.lab (192.168.20.10)
+PORT    STATE SERVICE
+445/tcp open  microsoft-ds
+
+Nmap scan report for 192.168.10.50
+PORT    STATE SERVICE
+445/tcp open  microsoft-ds
+
+Nmap scan report for 192.168.30.10
+PORT    STATE  SERVICE
+445/tcp closed microsoft-ds
+
+# ============================================================
+# TEST COMPLÉMENTAIRE — ACCÈS PARTAGES SMB DC
+# Commande : net view \\192.168.20.10 (depuis CLIENT-ALPHA)
+# ============================================================
+
+Ressources partagées de \\192.168.20.10
+
+Nom du partage  Type    Utilisé comme  Commentaire
+NETLOGON        Disque                 Partage de serveur d'accès
+SYSVOL          Disque                 Partage de serveur d'accès
+
+La commande s'est terminée correctement.
+
+# Note : Accès sans prompt d'authentification → CLIENT-ALPHA membre du domaine
+# Les partages NETLOGON et SYSVOL sont accessibles depuis le LAN
+
+# ============================================================
+# TEST COMPLÉMENTAIRE — SYSTEMINFO (depuis CLIENT-ALPHA PowerShell)
+# ============================================================
+
+Nom de l'hôte:                   CLIENT-ALPHA
+Nom du système d'exploitation:   Microsoft Windows 10 Entreprise LTSC
+Version du système:              10.0.17763 N/A build 17763
+Date d'installation originale:   08/10/2019, 11:14:00
+Domaine:                         alpha.lab
+Serveur d'ouverture de session:  \\DC-ALPHA
+Correctif(s):                    14 Corrections installées
+                                 [01]: KB5066143
+                                 [02]: KB4465065
+                                 [03]: KB4465664
+                                 [04]: KB4480056
+                                 [05]: KB4503308
+                                 [06]: KB4535680
+                                 [07]: KB4539571
+                                 [08]: KB4589208
+                                 [09]: KB5075904
+                                 [10]: KB5015896
+                                 [11]: KB5017400
+                                 [12]: KB5070248
+                                 [13]: KB5074222
+                                 [14]: KB5075903
+
+# ============================================================
+# TEST COMPLÉMENTAIRE — POLITIQUE DE MOTS DE PASSE
+# Commande : net accounts (depuis CLIENT-ALPHA)
+# ============================================================
+
+Fermeture forcée de la session après expiration ? :  Jamais
+Durée de vie minimale du mot de passe (jours) :      1
+Durée de vie maximale du mot de passe (jours) :      42
+Longueur minimale du mot de passe :                  7
+Nombre de mots de passe antérieurs à conserver :     24
+Seuil de verrouillage :                              Jamais    ← CRITIQUE
+Durée du verrouillage (min) :                        30
+Fenêtre d'observation du verrouillage (min) :        30
+Rôle de l'ordinateur :                               STATION
+
+# ============================================================
+# ANALYSE DES RÉSULTATS
+# ============================================================
+#
+# [C-NET-01] PORT 3389 (RDP) OUVERT
+#   → Bureau à distance exposé sur le réseau interne
+#   → Informations AD révélées sans authentification :
+#     Target_Name=ALPHA, DNS_Domain_Name=alpha.lab
+#     Product_Version=10.0.17763 (Windows 10 1809)
+#   → Criticité : CRITIQUE
+#
+# [C-NET-02] SMB SIGNING NON REQUIS
+#   → Message signing enabled but NOT required
+#   → Contrairement à DC-ALPHA (required)
+#   → NTLM Relay possible vers CLIENT-ALPHA
+#   → Criticité : CRITIQUE
+#
+# [C-APP-07] FLEXENSE DUP SCOUT 10.0.18
+#   → Interface web exposée sur port 80
+#   → CVE-2018-5267 : Buffer Overflow SEH
+#   → CVE-2018-5268 : Remote Code Execution
+#   → Logiciel tiers non justifié sur poste client
+#   → Criticité : CRITIQUE
+#
+# [C-SYS-01] WINDOWS 10 LTSC 2019 NON PATCHÉ
+#   → Build 17763 installé le 08/10/2019
+#   → Seulement 14 KB installées sur 7 ans
+#   → Nombreuses CVE critiques non corrigées
+#   → Criticité : ÉLEVÉ
+#
+# [C-SYS-02] SEUIL DE VERROUILLAGE = JAMAIS
+#   → Bruteforce illimité sur tous les comptes locaux
+#   → Combiné au RDP exposé → risque maximal
+#   → Criticité : ÉLEVÉ
+#
+# [C-NET-03] PARTAGES SYSVOL/NETLOGON ACCESSIBLES DEPUIS LAN
+#   → Accès sans prompt depuis CLIENT-ALPHA membre du domaine
+#   → GPO et scripts de connexion lisibles
+#   → Criticité : ÉLEVÉ
+# ============================================================

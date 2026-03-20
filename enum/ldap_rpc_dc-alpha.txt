@@ -1,0 +1,273 @@
+# ============================================================
+# AUDIT DE SÉCURITÉ — ALPHA SERVICES
+# Référence : AUDIT-ASRC-2026-001
+# Auditeur   : CHUIGWA Armand — Formation ASRC IMIE Paris
+# Date       : 20 mars 2026 — 03:45 CET
+# Cible      : DC-ALPHA — 192.168.20.10
+# Zone       : SERVERS (192.168.20.0/24)
+# Fichier    : enum/ldap_rpc_dc-alpha.txt
+# ============================================================
+
+# ============================================================
+# TEST 1 — LDAP ANONYME (sans credentials)
+# Commande : ldapsearch -x -H ldap://192.168.20.10 -b "DC=alpha,DC=lab"
+# ============================================================
+
+# extended LDIF
+# LDAPv3
+# base <DC=alpha,DC=lab> with scope subtree
+# filter: (objectclass=*)
+
+# search result
+search: 2
+result: 1 Operations error
+text: 000004DC: LdapErr: DSID-0C090A58, comment: In order to perform this
+operation a successful bind must be completed on the connection., data 0, v4f7c
+
+# → LDAP ANONYME BLOQUÉ ✅ Bonne configuration
+
+# ============================================================
+# TEST 2 — ENUM RPC ANONYME
+# Commande : rpcclient -U "" -N 192.168.20.10 -c "enumdomusers"
+# ============================================================
+
+result was NT_STATUS_ACCESS_DENIED
+
+# Commande : rpcclient -U "" -N 192.168.20.10 -c "enumdomgroups"
+result was NT_STATUS_ACCESS_DENIED
+
+# → ENUMÉRATION RPC ANONYME BLOQUÉE ✅ Bonne configuration
+
+# ============================================================
+# TEST 3 — LDAP AUTHENTIFIÉ (avec compte Carmand)
+# Commande : ldapsearch -x -H ldap://192.168.20.10
+#            -D "Carmand@alpha.lab" -W
+#            -b "DC=alpha,DC=lab" "(objectclass=user)"
+#            sAMAccountName userPrincipalName memberOf
+# ============================================================
+
+# Administrateur, Users, alpha.lab
+dn: CN=Administrateur,CN=Users,DC=alpha,DC=lab
+memberOf: CN=Admins du domaine,CN=Users,DC=alpha,DC=lab
+memberOf: CN=Administrateurs de l'entreprise,CN=Users,DC=alpha,DC=lab
+memberOf: CN=Administrateurs du schéma,CN=Users,DC=alpha,DC=lab
+memberOf: CN=Administrateurs,CN=Builtin,DC=alpha,DC=lab
+sAMAccountName: Administrateur
+
+# Invité, Users, alpha.lab
+sAMAccountName: Invité
+
+# DC-ALPHA, Domain Controllers, alpha.lab
+sAMAccountName: DC-ALPHA$
+
+# krbtgt, Users, alpha.lab
+sAMAccountName: krbtgt
+
+# CHUIGWA Armand, Departement, alpha.lab
+dn: CN=CHUIGWA Armand,OU=Departement,DC=alpha,DC=lab
+sAMAccountName: Carmand
+userPrincipalName: Carmand@Alpha.lab
+
+# CLIENT-ALPHA, Computers, alpha.lab
+sAMAccountName: CLIENT-ALPHA$
+
+# search result
+search: 2
+result: 0 Success
+# numResponses: 10
+# numEntries: 6
+
+# ============================================================
+# TEST 4 — ENUMÉRATION RPC AUTHENTIFIÉE
+# Commande : rpcclient -U "alpha.lab/Carmand" 192.168.20.10
+# ============================================================
+
+# enumdomusers
+user:[Administrateur] rid:[0x1f4]
+user:[Invité] rid:[0x1f5]
+user:[krbtgt] rid:[0x1f6]
+user:[Carmand] rid:[0x455]
+
+# enumdomgroups
+group:[Contrôleurs de domaine d'entreprise en lecture seule] rid:[0x1f2]
+group:[Admins du domaine] rid:[0x200]
+group:[Utilisateurs du domaine] rid:[0x201]
+group:[Invités du domaine] rid:[0x202]
+group:[Ordinateurs du domaine] rid:[0x203]
+group:[Contrôleurs de domaine] rid:[0x204]
+group:[Administrateurs du schéma] rid:[0x206]
+group:[Administrateurs de l'entreprise] rid:[0x207]
+group:[Propriétaires créateurs de la stratégie de groupe] rid:[0x208]
+group:[Contrôleurs de domaine en lecture seule] rid:[0x209]
+group:[Contrôleurs de domaine clonables] rid:[0x20a]
+group:[Protected Users] rid:[0x20d]
+group:[Administrateurs clés] rid:[0x20e]
+group:[Administrateurs clés Enterprise] rid:[0x20f]
+group:[DnsUpdateProxy] rid:[0x44e]
+group:[GG_IT] rid:[0x452]
+group:[GG_finance] rid:[0x453]
+group:[GG_Comercial] rid:[0x454]
+
+# ============================================================
+# TEST 5 — DÉTAILS COMPTE ADMINISTRATEUR
+# Commande : rpcclient queryuser 0x1f4
+# ============================================================
+
+User Name   : Administrateur
+Logon Time  : mer., 18 mars 2026 17:23:54 CET
+Password last set Time : dim., 22 févr. 2026 20:48:10 CET
+Password must change Time : jeu., 14 sept. 30828 → JAMAIS
+logon_count : 0x00000016 (22 connexions)
+acb_info    : 0x00000210
+
+# ============================================================
+# TEST 6 — DÉTAILS COMPTE INVITÉ
+# Commande : rpcclient queryuser 0x1f5
+# ============================================================
+
+User Name   : Invité
+Logon Time  : jeu., 01 janv. 1970 → JAMAIS CONNECTÉ
+logon_count : 0x00000000
+acb_info    : 0x00000215 → DÉSACTIVÉ ✅
+
+# ============================================================
+# TEST 7 — MEMBRES GROUPE ADMINS DU DOMAINE
+# Commande : rpcclient querygroupmem 0x200
+# ============================================================
+
+rid:[0x1f4] attr:[0x7]
+# → Seul membre : Administrateur (SID-500)
+
+# ============================================================
+# COLLECTE BLOODHOUND
+# Commande : bloodhound-python -u Carmand -p [REDACTED]
+#            -d alpha.lab -dc dc-alpha.alpha.lab
+#            -c all --zip -ns 192.168.20.10
+# ============================================================
+
+INFO: Found AD domain: alpha.lab
+INFO: Getting TGT for user
+INFO: Connecting to LDAP server: dc-alpha.alpha.lab
+INFO: Found 1 domains
+INFO: Found 1 domains in the forest
+INFO: Found 2 computers
+INFO: Found 5 users
+INFO: Found 56 groups
+INFO: Found 3 gpos
+INFO: Found 2 ous
+INFO: Found 19 containers
+INFO: Found 0 trusts
+INFO: Done in 00M 01S
+INFO: Compressing output into 20260320041119_bloodhound.zip
+
+# Fichier généré : 20260320041119_bloodhound.zip
+
+# ============================================================
+# ANALYSE BLOODHOUND — COMPTES UTILISATEURS
+# ============================================================
+
+# ADMINISTRATEUR@ALPHA.LAB
+#   Enabled          : True
+#   AdminCount       : True
+#   PassNeverExpires : TRUE  ← CRITIQUE
+#   LastLogon        : 1773851034 (18 mars 2026)
+#   Commentaire      : 22 connexions récentes → utilisé quotidiennement
+
+# CARMAND@ALPHA.LAB
+#   Enabled          : True
+#   AdminCount       : False
+#   PassNeverExpires : False ✅
+#   LastLogon        : 1773976280 (20 mars 2026)
+
+# KRBTGT@ALPHA.LAB
+#   Enabled          : False ✅
+#   AdminCount       : True
+#   PassNeverExpires : False ✅
+#   LastLogon        : 0 → jamais utilisé
+
+# INVITÉ@ALPHA.LAB
+#   Enabled          : False ✅
+#   PassNeverExpires : True  ← à corriger
+#   LastLogon        : 0 → jamais utilisé
+
+# ============================================================
+# ANALYSE BLOODHOUND — GROUPES PRIVILÉGIÉS
+# ============================================================
+
+# ADMINS DU DOMAINE@ALPHA.LAB
+#   Membres : SID-500 (Administrateur) uniquement ← SPOF CRITIQUE
+
+# ADMINISTRATEURS DE L'ENTREPRISE@ALPHA.LAB
+#   Membres : SID-500 (Administrateur) uniquement ← Contrôle forêt AD
+
+# ADMINISTRATEURS DU SCHÉMA@ALPHA.LAB
+#   Membres : SID-500 (Administrateur) uniquement ← Modification schéma
+
+# ADMINISTRATEURS@ALPHA.LAB
+#   Membres : SID-512 (Admins domaine), SID-519 (Adm. Entreprise), SID-500
+
+# GG_IT / GG_finance / GG_Comercial
+#   Membres : 0 → groupes vides non utilisés
+
+# ============================================================
+# ANALYSE BLOODHOUND — GPO
+# ============================================================
+
+# STRATÉGIE DE MOT DE PASSE UTILISATEUR@ALPHA.LAB
+#   DN : CN={77B90481-08D3-44CC-9C8F-4F6E608CF135},...
+#   → GPO personnalisée — application à vérifier
+
+# DEFAULT DOMAIN POLICY@ALPHA.LAB
+#   DN : CN={31B2F340-016D-11D2-945F-00C04FB984F9},...
+#   → Politique de domaine par défaut
+
+# DEFAULT DOMAIN CONTROLLERS POLICY@ALPHA.LAB
+#   DN : CN={6AC1786C-016F-11D2-945F-00C04FB984F9},...
+#   → Politique DC par défaut
+
+# ============================================================
+# ANALYSE BLOODHOUND — ORDINATEURS
+# ============================================================
+
+# CLIENT-ALPHA.ALPHA.LAB
+#   OS : Windows 10 Entreprise LTSC
+#   OS Version : 10.0 (17763)
+#   SamAccountName : CLIENT-ALPHA$
+
+# DC-ALPHA.ALPHA.LAB
+#   OS : Windows Server 2022 Standard Evaluation  ← ÉVALUATION
+#   OS Version : 10.0 (20348)
+#   SamAccountName : DC-ALPHA$
+
+# ============================================================
+# ANALYSE DES RÉSULTATS
+# ============================================================
+#
+# [C-AD-03] ENUMÉRATION AD COMPLÈTE AVEC COMPTE STANDARD
+#   → Structure complète énumérable avec Carmand (user standard)
+#   → Utilisateurs, groupes, OU, memberships exposés
+#   → Criticité : ÉLEVÉ
+#
+# [C-AD-04] COMPTE ADMINISTRATEUR UTILISÉ QUOTIDIENNEMENT
+#   → 22 connexions, dernière le 18 mars 2026
+#   → Violation principe séparation des rôles
+#   → Criticité : CRITIQUE
+#
+# [C-AD-05] MOT DE PASSE ADMINISTRATEUR SANS EXPIRATION
+#   → pwdNeverExpires = True
+#   → Mot de passe potentiellement ancien
+#   → Criticité : CRITIQUE
+#
+# [C-AD-06] ADMINISTRATEUR = SEUL MEMBRE GROUPES ADMIN
+#   → Admins du domaine, Adm. Entreprise, Adm. Schéma → 1 seul membre
+#   → SPOF : compromission = contrôle total du SI et de la forêt
+#   → Criticité : CRITIQUE
+#
+# [C-AD-07] DC-ALPHA SOUS WINDOWS SERVER 2022 EVALUATION
+#   → Expire après 180 jours → arrêt automatique
+#   → Criticité : MOYEN
+#
+# [P-AD-01] LDAP ANONYME BLOQUÉ
+#   → Bonne configuration — à maintenir
+#   → Statut : BON
+# ============================================================

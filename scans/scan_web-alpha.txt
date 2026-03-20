@@ -1,0 +1,101 @@
+# ============================================================
+# AUDIT DE SÉCURITÉ — ALPHA SERVICES
+# Référence : AUDIT-ASRC-2026-001
+# Auditeur   : CHUIGWA Armand — Formation ASRC IMIE Paris
+# Date       : 20 mars 2026 — 03:11 CET
+# Cible      : WEB-ALPHA — 192.168.30.10
+# Zone       : DMZ (192.168.30.0/24)
+# Commande   : sudo nmap -sV -sC -p- 192.168.30.10 -oN scan_web-alpha.txt
+# ============================================================
+
+Starting Nmap 7.98 ( https://nmap.org ) at 2026-03-20 03:11 +0100
+Nmap scan report for 192.168.30.10
+Host is up (0.0016s latency).
+Not shown: 65534 closed tcp ports (reset)
+
+PORT   STATE SERVICE VERSION
+80/tcp open  http    Apache httpd 2.4.52 ((Ubuntu))
+|_http-title: Accueil - ALPHA SERVICES
+| http-robots.txt: 2 disallowed entries
+|_/includes/ /admin/
+| http-cookie-flags:
+|   /:
+|     PHPSESSID:
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 17.28 seconds
+
+# ============================================================
+# TESTS COMPLÉMENTAIRES — HEADERS HTTP
+# Commande : curl -I http://192.168.30.10
+# ============================================================
+
+HTTP/1.1 200 OK
+Date: Fri, 20 Mar 2026 02:17:13 GMT
+Server: Apache/2.4.52 (Ubuntu)
+Set-Cookie: PHPSESSID=9elf5kf5helsbnrq3g55tec7tm; path=/
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Content-Type: text/html; charset=UTF-8
+
+# Headers de sécurité ABSENTS :
+# X-Frame-Options          → NON PRÉSENT
+# X-Content-Type-Options   → NON PRÉSENT
+# Content-Security-Policy  → NON PRÉSENT
+# Strict-Transport-Security→ NON PRÉSENT
+
+# ============================================================
+# TESTS COMPLÉMENTAIRES — ROBOTS.TXT
+# Commande : curl http://192.168.30.10/robots.txt
+# ============================================================
+
+User-agent: *
+Disallow: /includes/
+Disallow: /admin/
+
+# ============================================================
+# TESTS COMPLÉMENTAIRES — CHEMINS SENSIBLES
+# Commande : curl -I http://192.168.30.10/admin/
+# ============================================================
+
+# HEAD /admin/ → HTTP/1.1 200 OK  ← ACCESSIBLE
+# GET  /admin/ → HTTP/1.1 404 Not Found  ← Comportement incohérent
+
+# ============================================================
+# ANALYSE DES RÉSULTATS
+# ============================================================
+#
+# [C-APP-01] PORT 80 UNIQUEMENT — pas de port 443
+#   → Aucun HTTPS configuré sur le serveur web
+#   → Toutes les communications transitent en clair
+#   → Criticité : CRITIQUE
+#
+# [C-APP-02] VERSION APACHE EXPOSÉE
+#   → Apache/2.4.52 (Ubuntu) visible dans Server header
+#   → Version obsolète de 2021 — CVE-2021-41773 et autres connues
+#   → Criticité : CRITIQUE
+#
+# [C-APP-03] COOKIE PHPSESSID SANS HTTPONLY
+#   → Flag HttpOnly absent → accessible via JavaScript
+#   → Flag Secure absent → transmis en HTTP clair
+#   → Vol de session XSS possible
+#   → Criticité : ÉLEVÉ
+#
+# [C-APP-04] ROBOTS.TXT RÉVÈLE /admin/ ET /includes/
+#   → Information de reconnaissance gratuite
+#   → Interface d'administration exposée
+#   → Criticité : ÉLEVÉ
+#
+# [C-APP-05] HEADERS DE SÉCURITÉ HTTP ABSENTS
+#   → X-Frame-Options, X-Content-Type-Options, CSP, HSTS
+#   → Exposition aux attaques XSS et clickjacking
+#   → Criticité : ÉLEVÉ
+#
+# [C-APP-06] COMPORTEMENT HEAD/GET INCOHÉRENT
+#   → HEAD /admin/ = 200 OK vs GET /admin/ = 404 Not Found
+#   → Contournement potentiel des contrôles d'accès
+#   → Criticité : MOYEN
+# ============================================================
