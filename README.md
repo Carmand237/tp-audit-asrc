@@ -560,7 +560,7 @@ rpcclient -U "domain/user" <DC_IP> -c "queryuser 0x<RID>"
 
 ## 📚 Références
 
-- [ANSSI — EBIOS Risk Manager](https://www.ssi.gouv.fr/guide/ebios-risk-manager-la-methode/)
+- [ANSSI — EBIOS Risk Manager](https://cyber.gouv.fr/securisation/analyse-des-risques/methode-ebios-rm/)
 - [ISO/IEC 27001:2022](https://www.iso.org/standard/27001)
 - [ISO/IEC 27002:2022](https://www.iso.org/standard/75652.html)
 - [CIS Benchmarks — Windows Server](https://www.cisecurity.org/cis-benchmarks)
