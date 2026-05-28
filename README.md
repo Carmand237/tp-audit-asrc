@@ -564,7 +564,7 @@ rpcclient -U "domain/user" <DC_IP> -c "queryuser 0x<RID>"
 - [ISO/IEC 27001:2022](https://www.iso.org/standard/27001)
 - [ISO/IEC 27002:2022](https://www.iso.org/standard/75652.html)
 - [CIS Benchmarks — Windows Server](https://www.cisecurity.org/cis-benchmarks)
-- [BloodHound Documentation](https://bloodhound.readthedocs.io/)
+- [BloodHound Documentation](https://bloodhound.specterops.io/get-started/quickstart/enterprise-quickstart)
 - [Nmap Reference Guide](https://nmap.org/book/man.html)
 - [pfSense Documentation](https://docs.netgate.com/pfsense/en/latest/index.html)
 
