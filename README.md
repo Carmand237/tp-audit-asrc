@@ -566,7 +566,7 @@ rpcclient -U "domain/user" <DC_IP> -c "queryuser 0x<RID>"
 - [CIS Benchmarks — Windows Server](https://www.cisecurity.org/cis-benchmarks)
 - [BloodHound Documentation](https://bloodhound.readthedocs.io/)
 - [Nmap Reference Guide](https://nmap.org/book/man.html)
-- [pfSense Documentation](https://docs.netgate.com/pfsense/)
+- [pfSense Documentation](https://docs.netgate.com/pfsense/en/latest/index.html)
 
 ---
 
